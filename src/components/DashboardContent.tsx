@@ -1,6 +1,7 @@
 import { Users, Camera, AlertTriangle, Activity, Eye, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import LiveCameraFeed from "@/components/LiveCameraFeed";
+import CrowdTrendChart from "@/components/CrowdTrendChart";
 import CrowdStatsCards from "@/components/CrowdStatsCards";
 import StatCard from "@/components/StatCard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
@@ -76,7 +77,9 @@ const DashboardContent = () => {
         <LiveCameraFeed />
       </motion.div>
 
-      {/* Charts row */}
+      {/* Crowd Trend Chart */}
+      <CrowdTrendChart />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area chart */}
         <motion.div
