@@ -1,6 +1,7 @@
 import { Users, Camera, AlertTriangle, Activity, Eye, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import LiveCameraFeed from "@/components/LiveCameraFeed";
+import CrowdStatsCards from "@/components/CrowdStatsCards";
 import StatCard from "@/components/StatCard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
