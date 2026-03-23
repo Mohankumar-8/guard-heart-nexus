@@ -81,7 +81,9 @@ const DashboardContent = () => {
       {/* Crowd Trend Chart */}
       <CrowdTrendChart />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Alerts Panel */}
+      <AlertsPanel />
+
         {/* Area chart */}
         <motion.div
           className="lg:col-span-2 bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)]"
