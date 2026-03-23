@@ -66,6 +66,11 @@ const DashboardContent = () => {
         ))}
       </motion.div>
 
+      {/* Crowd Stats */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <CrowdStatsCards />
+      </motion.div>
+
       {/* Live Camera Feed */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
         <LiveCameraFeed />
