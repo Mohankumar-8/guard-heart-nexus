@@ -1,43 +1,26 @@
-import { useEffect, useState } from "react";
 import { Users, Gauge } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSimulation } from "@/context/SimulationContext";
+import { useEffect, useState } from "react";
 
-const densityLevels = [
-  { label: "Low", color: "text-success", bg: "bg-success/15", border: "border-success/30", barWidth: "33%" },
-  { label: "Medium", color: "text-warning", bg: "bg-warning/15", border: "border-warning/30", barWidth: "66%" },
-  { label: "High", color: "text-destructive", bg: "bg-destructive/15", border: "border-destructive/30", barWidth: "90%" },
-] as const;
-
-function getDensityIndex(count: number) {
-  if (count < 400) return 0;
-  if (count < 750) return 1;
-  return 2;
-}
+const densityConfig = {
+  Low: { color: "text-success", bg: "bg-success/15", barWidth: "33%", barColor: "bg-success" },
+  Medium: { color: "text-warning", bg: "bg-warning/15", barWidth: "66%", barColor: "bg-warning" },
+  High: { color: "text-destructive", bg: "bg-destructive/15", barWidth: "90%", barColor: "bg-destructive" },
+} as const;
 
 const CrowdStatsCards = () => {
-  const [count, setCount] = useState(627);
-  const [displayCount, setDisplayCount] = useState(627);
+  const { crowdCount, density } = useSimulation();
+  const [displayCount, setDisplayCount] = useState(crowdCount);
 
-  // Simulate live count changes
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCount((prev) => {
-        const delta = Math.floor(Math.random() * 21) - 10; // -10 to +10
-        return Math.max(80, Math.min(1200, prev + delta));
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Animate displayed number toward target
-  useEffect(() => {
-    if (displayCount === count) return;
-    const step = count > displayCount ? 1 : -1;
-    const timer = setTimeout(() => setDisplayCount((d) => d + step), 18);
+    if (displayCount === crowdCount) return;
+    const step = crowdCount > displayCount ? 1 : -1;
+    const timer = setTimeout(() => setDisplayCount((d) => d + step), 30);
     return () => clearTimeout(timer);
-  }, [count, displayCount]);
+  }, [crowdCount, displayCount]);
 
-  const density = densityLevels[getDensityIndex(count)];
+  const cfg = densityConfig[density];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -54,7 +37,7 @@ const CrowdStatsCards = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.15 }}
               >
-                {displayCount.toLocaleString()}
+                {displayCount}
               </motion.span>
               <span className="text-xs text-muted-foreground">persons</span>
             </div>
@@ -77,22 +60,21 @@ const CrowdStatsCards = () => {
             <div className="mt-2">
               <AnimatePresence mode="wait">
                 <motion.span
-                  key={density.label}
-                  className={`inline-flex items-center gap-2 text-3xl font-display font-bold ${density.color}`}
+                  key={density}
+                  className={`inline-flex items-center gap-2 text-3xl font-display font-bold ${cfg.color}`}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.25 }}
                 >
-                  {density.label}
+                  {density}
                 </motion.span>
               </AnimatePresence>
             </div>
-            {/* Density bar */}
             <div className="mt-3 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
               <motion.div
-                className={`h-full rounded-full ${density.label === "Low" ? "bg-success" : density.label === "Medium" ? "bg-warning" : "bg-destructive"}`}
-                animate={{ width: density.barWidth }}
+                className={`h-full rounded-full ${cfg.barColor}`}
+                animate={{ width: cfg.barWidth }}
                 transition={{ duration: 0.6, ease: "easeInOut" }}
               />
             </div>
@@ -101,7 +83,7 @@ const CrowdStatsCards = () => {
               <span className="text-[10px] text-muted-foreground">High</span>
             </div>
           </div>
-          <div className={`p-3 rounded-lg ${density.bg} ${density.color} ml-4`}>
+          <div className={`p-3 rounded-lg ${cfg.bg} ${cfg.color} ml-4`}>
             <Gauge className="h-6 w-6" />
           </div>
         </div>
