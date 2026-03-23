@@ -65,6 +65,11 @@ const DashboardContent = () => {
         ))}
       </motion.div>
 
+      {/* Live Camera Feed */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <LiveCameraFeed />
+      </motion.div>
+
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area chart */}
