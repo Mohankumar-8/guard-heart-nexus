@@ -1,5 +1,6 @@
 import { Users, Camera, AlertTriangle, Activity, Eye, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+import LiveCameraFeed from "@/components/LiveCameraFeed";
 import StatCard from "@/components/StatCard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
@@ -62,6 +63,11 @@ const DashboardContent = () => {
             <StatCard {...stat} />
           </motion.div>
         ))}
+      </motion.div>
+
+      {/* Live Camera Feed */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+        <LiveCameraFeed />
       </motion.div>
 
       {/* Charts row */}
