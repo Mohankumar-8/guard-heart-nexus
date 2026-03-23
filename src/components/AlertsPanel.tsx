@@ -1,58 +1,15 @@
-import { useEffect, useState } from "react";
 import { AlertTriangle, ShieldCheck, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSimulation, AlertSeverity } from "@/context/SimulationContext";
 
-type Severity = "safe" | "warning" | "critical";
-
-interface Alert {
-  id: number;
-  message: string;
-  severity: Severity;
-  location: string;
-  timestamp: Date;
-}
-
-const alertTemplates: { message: string; severity: Severity; locations: string[] }[] = [
-  { message: "High crowd density detected", severity: "critical", locations: ["Main Entrance", "Hall B", "Zone C North", "Gate 2"] },
-  { message: "Potential congestion risk", severity: "warning", locations: ["Corridor A", "Exit 3", "Parking Lot", "Zone D"] },
-  { message: "Safe — Normal activity", severity: "safe", locations: ["Zone A", "Hall C", "Gate 1", "Zone E South"] },
-];
-
-const severityConfig: Record<Severity, { dot: string; bg: string; border: string; text: string; icon: typeof AlertTriangle }> = {
-  critical: { dot: "bg-destructive", bg: "bg-destructive/10", border: "border-destructive/20", text: "text-destructive", icon: AlertTriangle },
-  warning: { dot: "bg-warning", bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: AlertCircle },
-  safe: { dot: "bg-success", bg: "bg-success/10", border: "border-success/20", text: "text-success", icon: ShieldCheck },
+const severityConfig: Record<AlertSeverity, { bg: string; border: string; text: string; icon: typeof AlertTriangle }> = {
+  critical: { bg: "bg-destructive/10", border: "border-destructive/20", text: "text-destructive", icon: AlertTriangle },
+  warning: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning", icon: AlertCircle },
+  safe: { bg: "bg-success/10", border: "border-success/20", text: "text-success", icon: ShieldCheck },
 };
 
-let nextId = 1;
-
-function generateAlert(): Alert {
-  const template = alertTemplates[Math.floor(Math.random() * alertTemplates.length)];
-  const location = template.locations[Math.floor(Math.random() * template.locations.length)];
-  return {
-    id: nextId++,
-    message: template.message,
-    severity: template.severity,
-    location,
-    timestamp: new Date(),
-  };
-}
-
 const AlertsPanel = () => {
-  const [alerts, setAlerts] = useState<Alert[]>(() =>
-    Array.from({ length: 5 }, () => {
-      const a = generateAlert();
-      a.timestamp = new Date(Date.now() - Math.random() * 600_000);
-      return a;
-    }).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-  );
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setAlerts((prev) => [generateAlert(), ...prev].slice(0, 12));
-    }, 5000);
-    return () => clearInterval(id);
-  }, []);
+  const { alerts } = useSimulation();
 
   const formatTime = (d: Date) =>
     d.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -75,9 +32,7 @@ const AlertsPanel = () => {
           <AlertTriangle className="h-4 w-4 text-warning" />
           Alerts Panel
         </h2>
-        <span className="text-[11px] text-muted-foreground">
-          {alerts.length} total
-        </span>
+        <span className="text-[11px] text-muted-foreground">{alerts.length} total</span>
       </div>
 
       <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">

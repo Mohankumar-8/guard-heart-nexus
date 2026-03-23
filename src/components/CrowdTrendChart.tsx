@@ -1,43 +1,24 @@
-import { useEffect, useState, useCallback } from "react";
 import { TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+import { useSimulation } from "@/context/SimulationContext";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend,
 } from "recharts";
-
-function generateInitialData() {
-  const now = Date.now();
-  return Array.from({ length: 10 }, (_, i) => {
-    const time = new Date(now - (9 - i) * 60_000);
-    const base = 500 + Math.sin(i * 0.6) * 120 + Math.random() * 60;
-    return {
-      time: time.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit", hour: "2-digit" }),
-      actual: Math.round(base),
-      predicted: null as number | null,
-    };
-  });
-}
+import { useMemo } from "react";
 
 function addPredictions(data: { time: string; actual: number; predicted: number | null }[]) {
   const last = data[data.length - 1];
   const now = Date.now();
   const predictions = Array.from({ length: 4 }, (_, i) => {
     const t = new Date(now + (i + 1) * 60_000);
-    const drift = (i + 1) * (Math.random() * 30 - 10);
+    const drift = (i + 1) * (Math.random() * 6 - 2);
     return {
-      time: t.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit", hour: "2-digit" }),
+      time: t.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       actual: null as number | null,
       predicted: Math.round(last.actual + drift),
     };
   });
-  // Bridge: last actual point also gets predicted value so line connects
   const bridged = data.map((d, i) =>
     i === data.length - 1 ? { ...d, predicted: d.actual } : d
   );
@@ -45,27 +26,8 @@ function addPredictions(data: { time: string; actual: number; predicted: number 
 }
 
 const CrowdTrendChart = () => {
-  const [rawData, setRawData] = useState(generateInitialData);
-
-  const tick = useCallback(() => {
-    setRawData((prev) => {
-      const lastActual = prev[prev.length - 1].actual;
-      const now = new Date();
-      const next = {
-        time: now.toLocaleTimeString("en-US", { hour12: false, minute: "2-digit", second: "2-digit", hour: "2-digit" }),
-        actual: Math.round(lastActual + (Math.random() * 40 - 20)),
-        predicted: null,
-      };
-      return [...prev.slice(1), next];
-    });
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(tick, 4000);
-    return () => clearInterval(id);
-  }, [tick]);
-
-  const chartData = addPredictions(rawData as any);
+  const { trendData } = useSimulation();
+  const chartData = useMemo(() => addPredictions(trendData as any), [trendData]);
 
   return (
     <motion.div
@@ -94,54 +56,19 @@ const CrowdTrendChart = () => {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 16%)" />
-          <XAxis
-            dataKey="time"
-            tick={{ fontSize: 10, fill: "hsl(215, 12%, 50%)" }}
-            axisLine={false}
-            tickLine={false}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: "hsl(215, 12%, 50%)" }}
-            axisLine={false}
-            tickLine={false}
-            domain={["dataMin - 40", "dataMax + 40"]}
-          />
+          <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(215, 12%, 50%)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+          <YAxis tick={{ fontSize: 10, fill: "hsl(215, 12%, 50%)" }} axisLine={false} tickLine={false} domain={["dataMin - 10", "dataMax + 10"]} />
           <Tooltip
-            contentStyle={{
-              backgroundColor: "hsl(220, 18%, 10%)",
-              border: "1px solid hsl(220, 14%, 16%)",
-              borderRadius: "8px",
-              fontSize: "12px",
-            }}
+            contentStyle={{ backgroundColor: "hsl(220, 18%, 10%)", border: "1px solid hsl(220, 14%, 16%)", borderRadius: "8px", fontSize: "12px" }}
             labelStyle={{ color: "hsl(210, 20%, 92%)" }}
           />
-          <Legend
-            verticalAlign="top"
-            align="right"
-            iconType="line"
-            wrapperStyle={{ fontSize: "11px", color: "hsl(215, 12%, 50%)" }}
-          />
-          <Line
-            type="monotone"
-            dataKey="actual"
-            name="Actual"
-            stroke="url(#actualGrad)"
-            strokeWidth={2.5}
+          <Legend verticalAlign="top" align="right" iconType="line" wrapperStyle={{ fontSize: "11px", color: "hsl(215, 12%, 50%)" }} />
+          <Line type="monotone" dataKey="actual" name="Actual" stroke="url(#actualGrad)" strokeWidth={2.5}
             dot={{ r: 3, fill: "hsl(168, 80%, 50%)", strokeWidth: 0 }}
             activeDot={{ r: 5, fill: "hsl(168, 80%, 50%)", strokeWidth: 2, stroke: "hsl(220, 18%, 10%)" }}
-            connectNulls={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="predicted"
-            name="Predicted"
-            stroke="hsl(38, 92%, 55%)"
-            strokeWidth={2}
-            strokeDasharray="6 4"
-            dot={{ r: 2.5, fill: "hsl(38, 92%, 55%)", strokeWidth: 0 }}
-            connectNulls={false}
-          />
+            connectNulls={false} />
+          <Line type="monotone" dataKey="predicted" name="Predicted" stroke="hsl(38, 92%, 55%)" strokeWidth={2}
+            strokeDasharray="6 4" dot={{ r: 2.5, fill: "hsl(38, 92%, 55%)", strokeWidth: 0 }} connectNulls={false} />
         </LineChart>
       </ResponsiveContainer>
     </motion.div>
