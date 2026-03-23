@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import LiveCameraFeed from "@/components/LiveCameraFeed";
 import CrowdTrendChart from "@/components/CrowdTrendChart";
 import CrowdStatsCards from "@/components/CrowdStatsCards";
+import AlertsPanel from "@/components/AlertsPanel";
 import StatCard from "@/components/StatCard";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
@@ -79,6 +80,9 @@ const DashboardContent = () => {
 
       {/* Crowd Trend Chart */}
       <CrowdTrendChart />
+
+      {/* Alerts Panel */}
+      <AlertsPanel />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area chart */}
