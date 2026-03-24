@@ -25,7 +25,7 @@ const CrowdStatsCards = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {/* Crowd Count */}
-      <div className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] transition-shadow duration-300">
+      <div className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] card-interactive">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Current People Count</p>
@@ -53,7 +53,7 @@ const CrowdStatsCards = () => {
       </div>
 
       {/* Density Level */}
-      <div className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] transition-shadow duration-300">
+      <div className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] card-interactive">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">Density Level</p>
