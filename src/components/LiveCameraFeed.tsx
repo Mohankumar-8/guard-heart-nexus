@@ -98,7 +98,7 @@ const LiveCameraFeed = () => {
               ))}
             </SelectContent>
           </Select>
-          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[11px] font-bold uppercase tracking-wider">
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[11px] font-bold uppercase tracking-wider live-badge">
             <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
             Live
           </span>
