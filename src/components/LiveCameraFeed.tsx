@@ -1,24 +1,80 @@
-import { motion } from "framer-motion";
-import { Camera } from "lucide-react";
-import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Camera, ChevronDown } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const boundingBoxes = [
-  { id: 1, x: 12, y: 28, w: 8, h: 18, label: "P-01" },
-  { id: 2, x: 35, y: 32, w: 7, h: 16, label: "P-02" },
-  { id: 3, x: 55, y: 25, w: 9, h: 20, label: "P-03" },
-  { id: 4, x: 75, y: 30, w: 7, h: 17, label: "P-04" },
-  { id: 5, x: 22, y: 50, w: 8, h: 19, label: "P-05" },
-  { id: 6, x: 62, y: 55, w: 7, h: 15, label: "P-06" },
-  { id: 7, x: 45, y: 45, w: 8, h: 18, label: "P-07" },
+interface CameraOption {
+  id: string;
+  label: string;
+  resolution: string;
+  boxes: { id: number; x: number; y: number; w: number; h: number; label: string }[];
+}
+
+const cameraOptions: CameraOption[] = [
+  {
+    id: "cam1",
+    label: "Camera 1 — Entrance",
+    resolution: "1920×1080 · 30fps",
+    boxes: [
+      { id: 1, x: 12, y: 28, w: 8, h: 18, label: "P-01" },
+      { id: 2, x: 35, y: 32, w: 7, h: 16, label: "P-02" },
+      { id: 3, x: 55, y: 25, w: 9, h: 20, label: "P-03" },
+      { id: 4, x: 75, y: 30, w: 7, h: 17, label: "P-04" },
+      { id: 5, x: 22, y: 50, w: 8, h: 19, label: "P-05" },
+      { id: 6, x: 62, y: 55, w: 7, h: 15, label: "P-06" },
+      { id: 7, x: 45, y: 45, w: 8, h: 18, label: "P-07" },
+    ],
+  },
+  {
+    id: "cam2",
+    label: "Camera 2 — Hall",
+    resolution: "1280×720 · 25fps",
+    boxes: [
+      { id: 1, x: 10, y: 20, w: 9, h: 20, label: "P-01" },
+      { id: 2, x: 30, y: 40, w: 8, h: 17, label: "P-02" },
+      { id: 3, x: 50, y: 22, w: 7, h: 19, label: "P-03" },
+      { id: 4, x: 70, y: 48, w: 8, h: 16, label: "P-04" },
+      { id: 5, x: 42, y: 60, w: 7, h: 15, label: "P-05" },
+    ],
+  },
+  {
+    id: "cam3",
+    label: "Camera 3 — Exit",
+    resolution: "1920×1080 · 30fps",
+    boxes: [
+      { id: 1, x: 18, y: 35, w: 8, h: 18, label: "P-01" },
+      { id: 2, x: 40, y: 28, w: 7, h: 16, label: "P-02" },
+      { id: 3, x: 65, y: 40, w: 9, h: 20, label: "P-03" },
+      { id: 4, x: 80, y: 55, w: 7, h: 15, label: "P-04" },
+    ],
+  },
 ];
 
 const LiveCameraFeed = () => {
   const [time, setTime] = useState(new Date());
+  const [selectedCam, setSelectedCam] = useState("cam1");
+  const [animKey, setAnimKey] = useState(0);
+
+  const camera = useMemo(
+    () => cameraOptions.find((c) => c.id === selectedCam)!,
+    [selectedCam]
+  );
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleCameraChange = (value: string) => {
+    setSelectedCam(value);
+    setAnimKey((k) => k + 1);
+  };
 
   const timestamp = time.toLocaleTimeString("en-US", { hour12: false });
 
@@ -29,10 +85,24 @@ const LiveCameraFeed = () => {
           <Camera className="h-4 w-4 text-primary" />
           Live Camera Feed
         </h2>
-        <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[11px] font-bold uppercase tracking-wider">
-          <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
-          Live
-        </span>
+        <div className="flex items-center gap-3">
+          <Select value={selectedCam} onValueChange={handleCameraChange}>
+            <SelectTrigger className="h-7 w-[180px] text-[11px] bg-secondary border-border">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {cameraOptions.map((cam) => (
+                <SelectItem key={cam.id} value={cam.id} className="text-xs">
+                  {cam.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-[11px] font-bold uppercase tracking-wider">
+            <span className="h-1.5 w-1.5 rounded-full bg-destructive animate-pulse" />
+            Live
+          </span>
+        </div>
       </div>
 
       {/* Video area */}
@@ -53,10 +123,10 @@ const LiveCameraFeed = () => {
           }}
         />
 
-        {/* Simulated scene background — dark gradient to mimic night cam */}
+        {/* Simulated scene background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[hsl(220,15%,8%)] via-[hsl(220,12%,12%)] to-[hsl(220,10%,6%)]" />
 
-        {/* Grid lines like surveillance floor */}
+        {/* Grid lines */}
         <svg className="absolute inset-0 w-full h-full opacity-[0.06] z-10" preserveAspectRatio="none">
           {Array.from({ length: 20 }).map((_, i) => (
             <line key={`v${i}`} x1={`${i * 5}%`} y1="0%" x2={`${i * 5}%`} y2="100%" stroke="white" strokeWidth="0.5" />
@@ -66,38 +136,46 @@ const LiveCameraFeed = () => {
           ))}
         </svg>
 
-        {/* Bounding boxes */}
-        {boundingBoxes.map((box) => (
+        {/* Bounding boxes — re-animate on camera switch */}
+        <AnimatePresence mode="wait">
           <motion.div
-            key={box.id}
-            className="absolute z-10 border border-primary rounded-sm"
-            style={{
-              left: `${box.x}%`,
-              top: `${box.y}%`,
-              width: `${box.w}%`,
-              height: `${box.h}%`,
-            }}
+            key={animKey}
+            className="absolute inset-0 z-10"
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity, delay: box.id * 0.2 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            {/* Corner brackets */}
-            <span className="absolute -top-px -left-px w-2 h-2 border-t-2 border-l-2 border-primary" />
-            <span className="absolute -top-px -right-px w-2 h-2 border-t-2 border-r-2 border-primary" />
-            <span className="absolute -bottom-px -left-px w-2 h-2 border-b-2 border-l-2 border-primary" />
-            <span className="absolute -bottom-px -right-px w-2 h-2 border-b-2 border-r-2 border-primary" />
-
-            {/* Label */}
-            <span className="absolute -top-4 left-0 text-[9px] font-mono bg-primary/80 text-primary-foreground px-1 rounded-sm leading-tight">
-              {box.label}
-            </span>
+            {camera.boxes.map((box) => (
+              <motion.div
+                key={box.id}
+                className="absolute border border-primary rounded-sm"
+                style={{
+                  left: `${box.x}%`,
+                  top: `${box.y}%`,
+                  width: `${box.w}%`,
+                  height: `${box.h}%`,
+                }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0.5, 1, 0.5], scale: 1 }}
+                transition={{ duration: 2, repeat: Infinity, delay: box.id * 0.15 }}
+              >
+                <span className="absolute -top-px -left-px w-2 h-2 border-t-2 border-l-2 border-primary" />
+                <span className="absolute -top-px -right-px w-2 h-2 border-t-2 border-r-2 border-primary" />
+                <span className="absolute -bottom-px -left-px w-2 h-2 border-b-2 border-l-2 border-primary" />
+                <span className="absolute -bottom-px -right-px w-2 h-2 border-b-2 border-r-2 border-primary" />
+                <span className="absolute -top-4 left-0 text-[9px] font-mono bg-primary/80 text-primary-foreground px-1 rounded-sm leading-tight">
+                  {box.label}
+                </span>
+              </motion.div>
+            ))}
           </motion.div>
-        ))}
+        </AnimatePresence>
 
-        {/* HUD Overlay — top left */}
+        {/* HUD — top left */}
         <div className="absolute top-3 left-3 z-30 space-y-0.5">
-          <p className="text-[10px] font-mono text-primary/90 leading-none">Camera 1 — Entrance Gate</p>
-          <p className="text-[10px] font-mono text-muted-foreground leading-none">RES 1920×1080 · 30fps</p>
+          <p className="text-[10px] font-mono text-primary/90 leading-none">{camera.label}</p>
+          <p className="text-[10px] font-mono text-muted-foreground leading-none">RES {camera.resolution}</p>
         </div>
 
         {/* HUD — top right */}
@@ -115,7 +193,7 @@ const LiveCameraFeed = () => {
             <span className="text-[10px] font-mono text-muted-foreground">AI Detection: ON</span>
           </div>
           <span className="text-[10px] font-mono text-muted-foreground">
-            Detected: <span className="text-foreground font-semibold">{boundingBoxes.length}</span> persons
+            Detected: <span className="text-foreground font-semibold">{camera.boxes.length}</span> persons
           </span>
         </div>
       </div>
