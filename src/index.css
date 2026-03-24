@@ -71,3 +71,48 @@
     font-family: var(--font-display);
   }
 }
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-gradient {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsla(168, 80%, 50%, 0.04) 30%,
+    hsla(168, 80%, 50%, 0.08) 50%,
+    hsla(168, 80%, 50%, 0.04) 70%,
+    transparent 100%
+  );
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Enhanced LIVE badge glow pulse */
+@keyframes live-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 hsla(0, 72%, 55%, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px 3px hsla(0, 72%, 55%, 0.2);
+  }
+}
+
+.live-badge {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+/* Smooth data value transitions */
+.data-value {
+  transition: color 0.3s ease, transform 0.2s ease;
+}
+
+/* Subtle card hover lift */
+.card-interactive {
+  transition: transform 0.25s ease, box-shadow 0.3s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-1px);
+}
