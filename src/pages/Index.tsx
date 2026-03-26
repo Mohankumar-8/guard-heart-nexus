@@ -53,10 +53,12 @@ const DashboardShell = () => {
   );
 };
 
-const Index = () => (
-  <SimulationProvider>
-    <DashboardShell />
-  </SimulationProvider>
-);
+const Index = () => {
+  return (
+    <SimulationProvider>
+      <DashboardShell />
+    </SimulationProvider>
+  );
+};
 
 export default Index;
