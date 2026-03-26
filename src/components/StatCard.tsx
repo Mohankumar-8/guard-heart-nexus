@@ -16,16 +16,16 @@ const StatCard = ({ title, value, change, changeType = "neutral", icon }: StatCa
   }[changeType];
 
   return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] card-interactive">
+    <div className="bg-card rounded-xl border border-border p-3 md:p-5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-glow)] card-interactive">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-2xl font-display font-bold mt-1">{value}</p>
+        <div className="min-w-0">
+          <p className="text-xs md:text-sm text-muted-foreground truncate">{title}</p>
+          <p className="text-lg md:text-2xl font-display font-bold mt-1">{value}</p>
           {change && (
-            <p className={`text-xs mt-1 ${changeColor}`}>{change}</p>
+            <p className={`text-[10px] md:text-xs mt-1 ${changeColor} truncate`}>{change}</p>
           )}
         </div>
-        <div className="p-2.5 rounded-lg bg-primary/10 text-primary">
+        <div className="p-2 md:p-2.5 rounded-lg bg-primary/10 text-primary shrink-0">
           {icon}
         </div>
       </div>
