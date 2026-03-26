@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 const Index = () => {
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1600);
@@ -17,9 +18,9 @@ const Index = () => {
   return (
     <SimulationProvider>
       <div className="min-h-screen flex flex-col bg-background">
-        <TopNavbar />
+        <TopNavbar onMenuToggle={() => setSidebarOpen((o) => !o)} />
         <div className="flex flex-1 overflow-hidden">
-          <AppSidebar />
+          <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
           <main className="flex-1 overflow-auto">
             <AnimatePresence mode="wait">
               {loading ? (
