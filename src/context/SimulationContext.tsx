@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 // --- Types ---
 export type DensityLevel = "Low" | "Medium" | "High";
 export type AlertSeverity = "safe" | "warning" | "critical";
-export type DataSource = "api" | "simulation";
+export type DataSource = "live" | "simulation";
+export type ConnectionStatus = "connected" | "connecting" | "disconnected";
 
 export interface SimAlert {
   id: number | string;
@@ -25,12 +26,15 @@ interface SimulationState {
   trendData: TrendPoint[];
   alerts: SimAlert[];
   dataSource: DataSource;
+  connectionStatus: ConnectionStatus;
   loading: boolean;
   error: string | null;
 }
 
-// --- Config ---
-const API_BASE = "http://localhost:8000";
+// --- Single config variable ---
+const BACKEND_URL = "localhost:8000";
+const WS_URL = `ws://${BACKEND_URL}/ws/live`;
+const HTTP_URL = `http://${BACKEND_URL}`;
 
 // --- Helpers ---
 function getDensity(count: number): DensityLevel {
@@ -86,13 +90,6 @@ function generateInitialAlerts(count: number): SimAlert[] {
   }));
 }
 
-// --- API fetch helpers ---
-async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
-  return res.json();
-}
-
 // --- Context ---
 const SimulationContext = createContext<SimulationState | null>(null);
 
@@ -107,46 +104,25 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const [trendData, setTrendData] = useState<TrendPoint[]>(generateInitialTrend);
   const [alerts, setAlerts] = useState<SimAlert[]>(() => generateInitialAlerts(45));
   const [dataSource, setDataSource] = useState<DataSource>("simulation");
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const apiAvailable = useRef(false);
-  const failCount = useRef(0);
 
-  // --- Check API availability on mount ---
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
-        if (!cancelled && res.ok) {
-          apiAvailable.current = true;
-          setDataSource("api");
-          failCount.current = 0;
-        }
-      } catch {
-        // API not available — stay on simulation
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const simTimer = useRef<ReturnType<typeof setTimeout>>();
+  const reconnectDelay = useRef(1000);
+  const mounted = useRef(true);
 
-  // --- API polling tick ---
-  const apiTick = useCallback(async () => {
-    try {
-      // Fetch all three endpoints in parallel
-      const [countRes, alertsRes, historyRes] = await Promise.all([
-        apiFetch<{ count: number; density: DensityLevel }>("/current-count"),
-        apiFetch<{ alerts: Array<{ id: string; message: string; severity: AlertSeverity; location: string; timestamp: string }> }>("/alerts"),
-        apiFetch<{ data: Array<{ count: number; density: string; timestamp: string }> }>("/history"),
-      ]);
+  // --- Apply WebSocket message to state ---
+  const applyWsMessage = useCallback((msg: any) => {
+    if (!mounted.current) return;
 
-      setCrowdCount(countRes.count);
+    if (msg.count != null) setCrowdCount(msg.count);
 
-      // Map API alerts to SimAlert format
+    if (msg.alerts && Array.isArray(msg.alerts)) {
       setAlerts(
-        alertsRes.alerts.slice(0, 15).map((a) => ({
+        msg.alerts.slice(0, 15).map((a: any) => ({
           id: a.id,
           message: a.message,
           severity: a.severity,
@@ -154,29 +130,22 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
           timestamp: new Date(a.timestamp),
         }))
       );
-
-      // Map history to trend data
-      if (historyRes.data.length > 0) {
-        const trend: TrendPoint[] = historyRes.data.slice(-10).map((h) => ({
-          time: formatTime(new Date(h.timestamp)),
-          actual: h.count,
-          predicted: null,
-        }));
-        setTrendData(trend);
-      }
-
-      failCount.current = 0;
-      setError(null);
-    } catch (err) {
-      failCount.current++;
-      // After 3 consecutive failures, fall back to simulation
-      if (failCount.current >= 3) {
-        console.warn("API unreachable after 3 attempts, switching to simulation");
-        apiAvailable.current = false;
-        setDataSource("simulation");
-        setError("Backend disconnected — running simulation");
-      }
     }
+
+    // Update trend from prediction or history
+    if (msg.count != null) {
+      const now = new Date();
+      setTrendData((td) => [
+        ...td.slice(1),
+        {
+          time: formatTime(now),
+          actual: msg.count,
+          predicted: msg.prediction?.predicted_count ?? null,
+        },
+      ]);
+    }
+
+    setError(null);
   }, []);
 
   // --- Simulation tick ---
@@ -207,30 +176,137 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // --- Main polling loop ---
-  useEffect(() => {
-    if (loading) return;
-
-    let timeout: ReturnType<typeof setTimeout>;
+  // --- Start / stop simulation loop ---
+  const startSimulation = useCallback(() => {
     const schedule = () => {
-      const delay = 2000 + Math.random() * 1000;
-      timeout = setTimeout(async () => {
-        if (apiAvailable.current && dataSource === "api") {
-          await apiTick();
-        } else {
-          simTick();
-        }
+      simTimer.current = setTimeout(() => {
+        simTick();
         schedule();
-      }, delay);
+      }, 2000 + Math.random() * 1000);
     };
     schedule();
-    return () => clearTimeout(timeout);
-  }, [loading, dataSource, apiTick, simTick]);
+  }, [simTick]);
+
+  const stopSimulation = useCallback(() => {
+    if (simTimer.current) {
+      clearTimeout(simTimer.current);
+      simTimer.current = undefined;
+    }
+  }, []);
+
+  // --- WebSocket connection with auto-reconnect ---
+  const connectWs = useCallback(() => {
+    if (!mounted.current) return;
+
+    // Clean up existing
+    if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onclose = null;
+      if (wsRef.current.readyState < 2) wsRef.current.close();
+    }
+
+    setConnectionStatus("connecting");
+
+    try {
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!mounted.current) return;
+        console.info("[CrowdGuard] WebSocket connected");
+        setConnectionStatus("connected");
+        setDataSource("live");
+        setError(null);
+        setLoading(false);
+        reconnectDelay.current = 1000; // reset backoff
+
+        // Stop simulation — live data takes over
+        stopSimulation();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          applyWsMessage(data);
+        } catch {
+          console.warn("[CrowdGuard] Failed to parse WS message");
+        }
+      };
+
+      ws.onerror = () => {
+        // onclose will fire after this
+      };
+
+      ws.onclose = () => {
+        if (!mounted.current) return;
+        console.info("[CrowdGuard] WebSocket disconnected");
+        setConnectionStatus("disconnected");
+
+        // Switch to simulation fallback
+        setDataSource("simulation");
+        setError("Backend disconnected — running simulation");
+        setLoading(false);
+        startSimulation();
+
+        // Auto-reconnect with exponential backoff (max 15s)
+        const delay = reconnectDelay.current;
+        reconnectDelay.current = Math.min(delay * 1.5, 15000);
+        reconnectTimer.current = setTimeout(connectWs, delay);
+      };
+    } catch {
+      // WebSocket constructor can throw if URL is invalid
+      setConnectionStatus("disconnected");
+      setDataSource("simulation");
+      setLoading(false);
+      startSimulation();
+    }
+  }, [applyWsMessage, startSimulation, stopSimulation]);
+
+  // --- Initial connection attempt with HTTP health check first ---
+  useEffect(() => {
+    mounted.current = true;
+
+    (async () => {
+      try {
+        const res = await fetch(`${HTTP_URL}/health`, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          // Backend is up — connect WebSocket
+          connectWs();
+          return;
+        }
+      } catch {
+        // Backend not reachable
+      }
+
+      // Fallback to simulation
+      if (mounted.current) {
+        setDataSource("simulation");
+        setConnectionStatus("disconnected");
+        setLoading(false);
+        startSimulation();
+
+        // Keep trying to connect in the background
+        reconnectTimer.current = setTimeout(connectWs, 5000);
+      }
+    })();
+
+    return () => {
+      mounted.current = false;
+      stopSimulation();
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // prevent reconnect on unmount
+        wsRef.current.close();
+      }
+    };
+  }, [connectWs, startSimulation, stopSimulation]);
 
   const density = getDensity(crowdCount);
 
   return (
-    <SimulationContext.Provider value={{ crowdCount, density, trendData, alerts, dataSource, loading, error }}>
+    <SimulationContext.Provider value={{ crowdCount, density, trendData, alerts, dataSource, connectionStatus, loading, error }}>
       {children}
     </SimulationContext.Provider>
   );
