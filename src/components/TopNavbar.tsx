@@ -1,4 +1,4 @@
-import { Bell, Search, Shield, Menu, Wifi, WifiOff } from "lucide-react";
+import { Bell, Search, Shield, Menu, Wifi, WifiOff, Loader2 } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useSimulation } from "@/context/SimulationContext";
 
@@ -7,7 +7,15 @@ interface TopNavbarProps {
 }
 
 const TopNavbar = ({ onMenuToggle }: TopNavbarProps) => {
-  const { dataSource, error } = useSimulation();
+  const { dataSource, connectionStatus, error } = useSimulation();
+
+  const statusConfig = {
+    connected: { icon: Wifi, label: "Live", className: "bg-success/15 text-success" },
+    connecting: { icon: Loader2, label: "Connecting…", className: "bg-warning/15 text-warning" },
+    disconnected: { icon: WifiOff, label: "Simulation", className: "bg-muted text-muted-foreground" },
+  }[connectionStatus];
+
+  const StatusIcon = statusConfig.icon;
 
   return (
     <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card/50 backdrop-blur-sm">
@@ -24,14 +32,11 @@ const TopNavbar = ({ onMenuToggle }: TopNavbarProps) => {
         <h1 className="text-base md:text-lg font-display font-bold tracking-tight text-foreground">
           CrowdGuard <span className="text-primary">AI</span>
         </h1>
-        {/* Data source indicator */}
-        <div className={`hidden sm:flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-          dataSource === "api"
-            ? "bg-success/15 text-success"
-            : "bg-warning/15 text-warning"
-        }`}>
-          {dataSource === "api" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {dataSource === "api" ? "Live API" : "Simulation"}
+
+        {/* Connection status badge */}
+        <div className={`hidden sm:flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${statusConfig.className}`}>
+          <StatusIcon className={`h-3 w-3 ${connectionStatus === "connecting" ? "animate-spin" : ""}`} />
+          {statusConfig.label}
         </div>
       </div>
 
