@@ -1,11 +1,12 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from "react";
 
 // --- Types ---
 export type DensityLevel = "Low" | "Medium" | "High";
 export type AlertSeverity = "safe" | "warning" | "critical";
+export type DataSource = "api" | "simulation";
 
 export interface SimAlert {
-  id: number;
+  id: number | string;
   message: string;
   severity: AlertSeverity;
   location: string;
@@ -23,7 +24,13 @@ interface SimulationState {
   density: DensityLevel;
   trendData: TrendPoint[];
   alerts: SimAlert[];
+  dataSource: DataSource;
+  loading: boolean;
+  error: string | null;
 }
+
+// --- Config ---
+const API_BASE = "http://localhost:8000";
 
 // --- Helpers ---
 function getDensity(count: number): DensityLevel {
@@ -79,6 +86,13 @@ function generateInitialAlerts(count: number): SimAlert[] {
   }));
 }
 
+// --- API fetch helpers ---
+async function apiFetch<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`);
+  return res.json();
+}
+
 // --- Context ---
 const SimulationContext = createContext<SimulationState | null>(null);
 
@@ -92,22 +106,92 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
   const [crowdCount, setCrowdCount] = useState(45);
   const [trendData, setTrendData] = useState<TrendPoint[]>(generateInitialTrend);
   const [alerts, setAlerts] = useState<SimAlert[]>(() => generateInitialAlerts(45));
+  const [dataSource, setDataSource] = useState<DataSource>("simulation");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const apiAvailable = useRef(false);
+  const failCount = useRef(0);
 
-  const tick = useCallback(() => {
+  // --- Check API availability on mount ---
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+        if (!cancelled && res.ok) {
+          apiAvailable.current = true;
+          setDataSource("api");
+          failCount.current = 0;
+        }
+      } catch {
+        // API not available — stay on simulation
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // --- API polling tick ---
+  const apiTick = useCallback(async () => {
+    try {
+      // Fetch all three endpoints in parallel
+      const [countRes, alertsRes, historyRes] = await Promise.all([
+        apiFetch<{ count: number; density: DensityLevel }>("/current-count"),
+        apiFetch<{ alerts: Array<{ id: string; message: string; severity: AlertSeverity; location: string; timestamp: string }> }>("/alerts"),
+        apiFetch<{ data: Array<{ count: number; density: string; timestamp: string }> }>("/history"),
+      ]);
+
+      setCrowdCount(countRes.count);
+
+      // Map API alerts to SimAlert format
+      setAlerts(
+        alertsRes.alerts.slice(0, 15).map((a) => ({
+          id: a.id,
+          message: a.message,
+          severity: a.severity,
+          location: a.location,
+          timestamp: new Date(a.timestamp),
+        }))
+      );
+
+      // Map history to trend data
+      if (historyRes.data.length > 0) {
+        const trend: TrendPoint[] = historyRes.data.slice(-10).map((h) => ({
+          time: formatTime(new Date(h.timestamp)),
+          actual: h.count,
+          predicted: null,
+        }));
+        setTrendData(trend);
+      }
+
+      failCount.current = 0;
+      setError(null);
+    } catch (err) {
+      failCount.current++;
+      // After 3 consecutive failures, fall back to simulation
+      if (failCount.current >= 3) {
+        console.warn("API unreachable after 3 attempts, switching to simulation");
+        apiAvailable.current = false;
+        setDataSource("simulation");
+        setError("Backend disconnected — running simulation");
+      }
+    }
+  }, []);
+
+  // --- Simulation tick ---
+  const simTick = useCallback(() => {
     setCrowdCount((prev) => {
-      // Random walk with slight mean-reversion toward 50
       const meanRevert = (50 - prev) * 0.05;
       const delta = meanRevert + (Math.random() * 14 - 7);
       const next = Math.round(Math.max(5, Math.min(100, prev + delta)));
 
-      // Update trend
       const now = new Date();
       setTrendData((td) => [
         ...td.slice(1),
         { time: formatTime(now), actual: next, predicted: null },
       ]);
 
-      // Generate alert based on new density
       const density = getDensity(next);
       const { message, severity } = alertForDensity(density);
       const newAlert: SimAlert = {
@@ -123,24 +207,30 @@ export function SimulationProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // --- Main polling loop ---
   useEffect(() => {
-    // Random interval between 2-3 seconds
+    if (loading) return;
+
     let timeout: ReturnType<typeof setTimeout>;
     const schedule = () => {
       const delay = 2000 + Math.random() * 1000;
-      timeout = setTimeout(() => {
-        tick();
+      timeout = setTimeout(async () => {
+        if (apiAvailable.current && dataSource === "api") {
+          await apiTick();
+        } else {
+          simTick();
+        }
         schedule();
       }, delay);
     };
     schedule();
     return () => clearTimeout(timeout);
-  }, [tick]);
+  }, [loading, dataSource, apiTick, simTick]);
 
   const density = getDensity(crowdCount);
 
   return (
-    <SimulationContext.Provider value={{ crowdCount, density, trendData, alerts }}>
+    <SimulationContext.Provider value={{ crowdCount, density, trendData, alerts, dataSource, loading, error }}>
       {children}
     </SimulationContext.Provider>
   );

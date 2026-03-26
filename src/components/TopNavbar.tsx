@@ -1,11 +1,14 @@
-import { Bell, Search, Shield, Menu } from "lucide-react";
+import { Bell, Search, Shield, Menu, Wifi, WifiOff } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useSimulation } from "@/context/SimulationContext";
 
 interface TopNavbarProps {
   onMenuToggle?: () => void;
 }
 
 const TopNavbar = ({ onMenuToggle }: TopNavbarProps) => {
+  const { dataSource, error } = useSimulation();
+
   return (
     <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 bg-card/50 backdrop-blur-sm">
       <div className="flex items-center gap-2 md:gap-3">
@@ -21,9 +24,21 @@ const TopNavbar = ({ onMenuToggle }: TopNavbarProps) => {
         <h1 className="text-base md:text-lg font-display font-bold tracking-tight text-foreground">
           CrowdGuard <span className="text-primary">AI</span>
         </h1>
+        {/* Data source indicator */}
+        <div className={`hidden sm:flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+          dataSource === "api"
+            ? "bg-success/15 text-success"
+            : "bg-warning/15 text-warning"
+        }`}>
+          {dataSource === "api" ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          {dataSource === "api" ? "Live API" : "Simulation"}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 md:gap-4">
+        {error && (
+          <span className="hidden md:block text-[10px] text-warning truncate max-w-[200px]">{error}</span>
+        )}
         <div className="hidden md:flex items-center gap-2 bg-secondary rounded-lg px-3 py-1.5">
           <Search className="h-4 w-4 text-muted-foreground" />
           <input
